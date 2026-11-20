@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KITHub — ระบบวิเคราะห์ข้อมูลการขาย (Sales Analytics Dashboard)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --primary: #FF6B35;
+      --primary-dark: #E5531D;
+      --primary-light: #FFE8DF;
+      --secondary: #1E293B;
+      --accent: #10B981;
+      --accent-light: #D1FAE5;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --info: #3B82F6;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: var(--secondary);
+      color: white;
+      padding: 0.75rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: white;
+    }
+    .brand-icon {
+      background: var(--primary);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .brand-text h1 { font-size: 1.15rem; font-weight: 700; line-height: 1.2; }
+    .brand-text p { font-size: 0.75rem; color: #94A3B8; }
+
+    .nav-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-drive {
+      background: #4285F4;
+      color: white;
+    }
+    .btn-drive:hover { background: #3367D6; }
+    .btn-download {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-download:hover { background: #059669; }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    /* Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    /* Cleansing Alert Banner */
+    .alert-banner {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      border: 1px solid #A7F3D0;
+      border-radius: var(--radius);
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .alert-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .alert-banner-icon {
+      background: var(--accent);
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .alert-banner h3 { font-size: 0.95rem; font-weight: 600; color: #065F46; }
+    .alert-banner p { font-size: 0.82rem; color: #047857; }
+    .badge-clean {
+      background: #065F46;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+    .kpi-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .kpi-val {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chart-title span { display: flex; align-items: center; gap: 8px; }
+    .chart-box {
+      position: relative;
+      height: 280px;
+    }
+
+    /* Data Cleansing Details Section */
+    .cleansing-details {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+    }
+    .clean-table th, .clean-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .clean-table th { background: #F1F5F9; color: var(--text-muted); font-weight: 600; }
+    .tag-danger { background: #FEE2E2; color: #991B1B; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .tag-success { background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+
+    /* Explorer / Table Section */
+    .table-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .table-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 8px 12px 8px 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .search-box input:focus { border-color: var(--primary); }
+    .search-box .material-icons {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    select.filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.85rem;
+      background: white;
+      outline: none;
+      color: var(--text-main);
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 520px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    table.data-table th {
+      background: #F1F5F9;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 10px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+    }
+    table.data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data-table tr:hover {
+      background: #F8FAFC;
+    }
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .page-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .page-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.82rem;
+    }
+    .page-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .navbar { flex-direction: column; gap: 10px; align-items: flex-start; padding: 1rem; }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#" class="brand">
+      <div class="brand-icon">
+        <span class="material-icons">analytics</span>
+      </div>
+      <div class="brand-text">
+        <h1>KITHub Sales Analytics</h1>
+        <p>ระบบวิเคราะห์ข้อมูลยอดขายและคลังสินค้า (Cleaned Data)</p>
+      </div>
+    </a>
+    <div class="nav-actions">
+      <a href="https://drive.google.com/file/d/1YukGcMSPl2Fce7lweA5qRlCLgF6XE1SZ/view?usp=drivesdk" target="_blank" class="btn btn-drive">
+        <span class="material-icons" style="font-size:18px">cloud_download</span> เปิดใน Google Drive
+      </a>
+      <a href="sales_data_cleaned.csv" download class="btn btn-download">
+        <span class="material-icons" style="font-size:18px">download</span> ดาวน์โหลด CSV
+      </a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Alert / Cleansing Banner -->
+    <div class="alert-banner">
+      <div class="alert-banner-content">
+        <div class="alert-banner-icon">
+          <span class="material-icons">verified</span>
+        </div>
+        <div>
+          <h3>ข้อมูลได้รับการล้าง (Data Cleansing) เรียบร้อยแล้ว 100%</h3>
+          <p>คัดกรองรายการขยะออก 755 รายการ (ยกเลิก 471 รายการ + คืนสินค้า 284 รายการ) คงเหลือข้อมูลการขายจริง <strong>9,245 รายการ</strong></p>
+        </div>
+      </div>
+      <div>
+        <span class="badge-clean">✓ พร้อมใช้งานเชิงลึก</span>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>ยอดขายสุทธิทั้งหมด</span>
+          <div class="kpi-icon" style="background:#FFE8DF; color:#FF6B35">
+            <span class="material-icons">payments</span>
+          </div>
+        </div>
+        <div class="kpi-val" id="kpi-revenue">฿10,208,323</div>
+        <div class="kpi-sub">จากคำสั่งซื้อที่เสร็จสมบูรณ์</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>คำสั่งซื้อที่สำเร็จ</span>
+          <div class="kpi-icon" style="background:#D1FAE5; color:#10B981">
+            <span class="material-icons">shopping_bag</span>
+          </div>
+        </div>
+        <div class="kpi-val" id="kpi-orders">9,245</div>
+        <div class="kpi-sub">ออเดอร์ (ตัดขยะออก 755 รายการ)</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>ยอดเฉลี่ยต่อออเดอร์ (AOV)</span>
+          <div class="kpi-icon" style="background:#E0E7FF; color:#4F46E5">
+            <span class="material-icons">trending_up</span>
+          </div>
+        </div>
+        <div class="kpi-val" id="kpi-aov">฿1,104</div>
+        <div class="kpi-sub">เฉลี่ย 1.85 ชิ้น/ออเดอร์</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>จำนวนชิ้นที่ขายได้</span>
+          <div class="kpi-icon" style="background:#FEF3C7; color:#D97706">
+            <span class="material-icons">inventory_2</span>
+          </div>
+        </div>
+        <div class="kpi-val" id="kpi-units">17,160</div>
+        <div class="kpi-sub">ชิ้นสินค้าทั้งหมด</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>คะแนนความพึงพอใจ</span>
+          <div class="kpi-icon" style="background:#FCE7F3; color:#DB2777">
+            <span class="material-icons">star</span>
+          </div>
+        </div>
+        <div class="kpi-val" id="kpi-rating">4.28 ★</div>
+        <div class="kpi-sub">จากรีวิว 7,912 รายการ</div>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid">
+      <!-- Chart 1: Category -->
+      <div class="chart-card">
+        <div class="chart-title">
+          <span><span class="material-icons" style="color:#FF6B35">pie_chart</span> ยอดขายตามหมวดหมู่สินค้า</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Region -->
+      <div class="chart-card">
+        <div class="chart-title">
+          <span><span class="material-icons" style="color:#3B82F6">map</span> ยอดขายตามภูมิภาค</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="regionChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 3: Channel -->
+      <div class="chart-card">
+        <div class="chart-title">
+          <span><span class="material-icons" style="color:#10B981">storefront</span> ยอดขายตามช่องทางการจำหน่าย</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="channelChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 4: Payment -->
+      <div class="chart-card">
+        <div class="chart-title">
+          <span><span class="material-icons" style="color:#F59E0B">account_balance_wallet</span> สัดส่วนวิธีชำระเงิน</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="paymentChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 5: Top 10 Products -->
+      <div class="chart-card" style="grid-column: 1 / -1;">
+        <div class="chart-title">
+          <span><span class="material-icons" style="color:#8B5CF6">leaderboard</span> 10 อันดับสินค้าที่ทำยอดขายสูงสุด (Top 10 Revenue Products)</span>
+        </div>
+        <div class="chart-box" style="height: 320px;">
+          <canvas id="topProductsChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cleansing Details Report -->
+    <div class="cleansing-details">
+      <div class="chart-title">
+        <span><span class="material-icons" style="color:#065F46">cleaning_services</span> รายละเอียดการทำความสะอาดข้อมูล (Data Cleansing Summary)</span>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 0.5rem;">
+        ไฟล์ต้นทางจาก Google Drive มีจำนวน 10,000 แถว ระบบได้ทำการตรวจจับและคัดกรองข้อมูลที่ไม่สมบูรณ์ออก ดังตาราง:
+      </p>
+      <table class="clean-table">
+        <thead>
+          <tr>
+            <th>รายการตรวจสอบ</th>
+            <th>ก่อนทำความสะอาด</th>
+            <th>การดำเนินการ</th>
+            <th>สถานะ / ผลลัพธ์</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>คำสั่งซื้อที่ถูกยกเลิก (Cancelled)</strong></td>
+            <td>471 รายการ</td>
+            <td><span class="tag-danger">ลบออก</span> ไม่เกิดยอดขายจริง และไม่มีคะแนนรีวิว</td>
+            <td>0 รายการ</td>
+          </tr>
+          <tr>
+            <td><strong>สินค้าที่ถูกส่งคืน (Returned)</strong></td>
+            <td>284 รายการ</td>
+            <td><span class="tag-danger">ลบออก</span> รายการถูกตีกลับ ไม่นับเป็นยอดขายสุทธิ</td>
+            <td>0 รายการ</td>
+          </tr>
+          <tr>
+            <td><strong>รายการขายที่สมบูรณ์ (Successful)</strong></td>
+            <td>9,245 รายการ</td>
+            <td><span class="tag-success">เก็บรักษา</span> คำนวณราคา, ส่วนลด, ค่าส่ง ถูกต้อง 100%</td>
+            <td><strong>9,245 รายการ (92.45%)</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Data Explorer Table -->
+    <div class="table-section">
+      <div class="chart-title">
+        <span><span class="material-icons" style="color:var(--primary)">table_view</span> ตารางค้นหาและสำรวจข้อมูลการขาย (Data Explorer)</span>
+        <span id="filtered-count" style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">กำลังโหลดข้อมูล...</span>
+      </div>
+
+      <div class="table-controls">
+        <div class="search-box">
+          <span class="material-icons">search</span>
+          <input type="text" id="search-input" placeholder="ค้นหา รหัสคำสั่งซื้อ, ชื่อสินค้า, จังหวัด...">
+        </div>
+        <div class="filters">
+          <select id="filter-category" class="filter-select">
+            <option value="">ทุกหมวดหมู่สินค้า</option>
+            <option value="อิเล็กทรอนิกส์">อิเล็กทรอนิกส์</option>
+            <option value="แฟชั่น">แฟชั่น</option>
+            <option value="บ้านและสวน">บ้านและสวน</option>
+            <option value="ความงาม">ความงาม</option>
+            <option value="กีฬา">กีฬา</option>
+            <option value="อาหารและเครื่องดื่ม">อาหารและเครื่องดื่ม</option>
+            <option value="หนังสือและเครื่องเขียน">หนังสือและเครื่องเขียน</option>
+          </select>
+
+          <select id="filter-region" class="filter-select">
+            <option value="">ทุกภูมิภาค</option>
+            <option value="ภาคกลาง">ภาคกลาง</option>
+            <option value="ภาคเหนือ">ภาคเหนือ</option>
+            <option value="ภาคตะวันออกเฉียงเหนือ">ภาคตะวันออกเฉียงเหนือ</option>
+            <option value="ภาคตะวันออก">ภาคตะวันออก</option>
+            <option value="ภาคใต้">ภาคใต้</option>
+          </select>
+
+          <select id="filter-channel" class="filter-select">
+            <option value="">ทุกช่องทางการขาย</option>
+            <option value="แอปมือถือ">แอปมือถือ</option>
+            <option value="เว็บไซต์">เว็บไซต์</option>
+            <option value="หน้าร้าน">หน้าร้าน</option>
+            <option value="โซเชียลมีเดีย">โซเชียลมีเดีย</option>
+          </select>
+
+          <select id="filter-payment" class="filter-select">
+            <option value="">ทุกวิธีชำระเงิน</option>
+            <option value="พร้อมเพย์">พร้อมเพย์</option>
+            <option value="บัตรเครดิต">บัตรเครดิต</option>
+            <option value="เก็บเงินปลายทาง">เก็บเงินปลายทาง</option>
+            <option value="โอนผ่านธนาคาร">โอนผ่านธนาคาร</option>
+            <option value="เงินสด">เงินสด</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>รหัสคำสั่งซื้อ</th>
+              <th>วันที่</th>
+              <th>เวลา</th>
+              <th>จังหวัด</th>
+              <th>ภาค</th>
+              <th>ช่องทาง</th>
+              <th>หมวดสินค้า</th>
+              <th>ชื่อสินค้า</th>
+              <th>ราคา</th>
+              <th>จำนวน</th>
+              <th>ส่วนลด</th>
+              <th>ยอดสุทธิ</th>
+              <th>วิธีชำระเงิน</th>
+              <th>รีวิว</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="14" style="text-align:center; padding: 2rem;">กำลังโหลดข้อมูล...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <div>
+          แสดงหน้า <span id="cur-page">1</span> จาก <span id="total-pages">1</span>
+        </div>
+        <div class="page-btns">
+          <button id="btn-prev" class="page-btn">ก่อนหน้า</button>
+          <button id="btn-next" class="page-btn">ถัดไป</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>KITHub Sales Analytics Dashboard &copy; 2026 | พัฒนาจากไฟล์ข้อมูล sales_data_cleaned.csv</p>
+    <p style="font-size:0.75rem; margin-top:4px;">แหล่งข้อมูล: Google Classroom (UTTC) | กรองข้อมูลขยะเรียบร้อย</p>
+  </footer>
+
+  <script>
+    // Summary Data for Charts
+    const summaryData = {
+      categories: {
+        labels: ['อิเล็กทรอนิกส์', 'แฟชั่น', 'บ้านและสวน', 'ความงาม', 'กีฬา', 'อาหารและเครื่องดื่ม', 'หนังสือและเครื่องเขียน'],
+        values: [3993928, 2289074, 1339964, 1121651, 630556, 457090, 376058]
+      },
+      regions: {
+        labels: ['ภาคกลาง', 'ภาคเหนือ', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคตะวันออก', 'ภาคใต้'],
+        values: [4041611, 2093622, 1998732, 1105726, 968629]
+      },
+      channels: {
+        labels: ['แอปมือถือ', 'เว็บไซต์', 'หน้าร้าน', 'โซเชียลมีเดีย'],
+        values: [3247699, 3117613, 2330485, 1512525]
+      },
+      payments: {
+        labels: ['พร้อมเพย์', 'บัตรเครดิต', 'เก็บเงินปลายทาง', 'โอนผ่านธนาคาร', 'เงินสด'],
+        values: [4366864, 2550679, 1830429, 1259483, 200866]
+      },
+      topProducts: {
+        labels: ['สมาร์ทวอทช์', 'รองเท้าผ้าใบ', 'คีย์บอร์ดเกมมิ่ง', 'ลำโพงพกพา', 'กระเป๋าเป้', 'หม้อทอดไร้น้ำมัน', 'เซรั่มบำรุงผิว', 'กางเกงยีนส์', 'หูฟังบลูทูธ', 'ชุดเครื่องนอน'],
+        values: [1597185, 954749, 758841, 709349, 600367, 554568, 526313, 456839, 424610, 386853]
+      }
+    };
+
+    // Render Charts
+    function initCharts() {
+      // 1. Category Chart (Doughnut)
+      new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+          labels: summaryData.categories.labels,
+          datasets: [{
+            data: summaryData.categories.values,
+            backgroundColor: ['#FF6B35', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F59E0B', '#64748B']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Prompt' } } }
+          }
+        }
+      });
+
+      // 2. Region Chart (Bar)
+      new Chart(document.getElementById('regionChart'), {
+        type: 'bar',
+        data: {
+          labels: summaryData.regions.labels,
+          datasets: [{
+            label: 'ยอดขาย (บาท)',
+            data: summaryData.regions.values,
+            backgroundColor: '#3B82F6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { callback: v => '฿' + (v/1000000).toFixed(1) + 'M' } }
+          }
+        }
+      });
+
+      // 3. Channel Chart (Bar)
+      new Chart(document.getElementById('channelChart'), {
+        type: 'bar',
+        data: {
+          labels: summaryData.channels.labels,
+          datasets: [{
+            label: 'ยอดขาย (บาท)',
+            data: summaryData.channels.values,
+            backgroundColor: ['#10B981', '#059669', '#34D399', '#6EE7B7'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { callback: v => '฿' + (v/1000000).toFixed(1) + 'M' } }
+          }
+        }
+      });
+
+      // 4. Payment Chart (Pie)
+      new Chart(document.getElementById('paymentChart'), {
+        type: 'pie',
+        data: {
+          labels: summaryData.payments.labels,
+          datasets: [{
+            data: summaryData.payments.values,
+            backgroundColor: ['#0284C7', '#6366F1', '#F59E0B', '#10B981', '#94A3B8']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Prompt' } } }
+          }
+        }
+      });
+
+      // 5. Top Products (Horizontal Bar)
+      new Chart(document.getElementById('topProductsChart'), {
+        type: 'bar',
+        data: {
+          labels: summaryData.topProducts.labels,
+          datasets: [{
+            label: 'ยอดขายรวม (บาท)',
+            data: summaryData.topProducts.values,
+            backgroundColor: '#FF6B35',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { callback: v => '฿' + (v/1000).toLocaleString() + 'k' } }
+          }
+        }
+      });
+    }
+
+    // Table Data and Pagination
+    let allData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const pageSize = 25;
+
+    async function loadTableData() {
+      try {
+        const response = await fetch('sales_data_cleaned.csv');
+        if (!response.ok) throw new Error('Network response error');
+        const csvText = await response.text();
+        
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(results) {
+            allData = results.data;
+            filteredData = allData;
+            applyFilters();
+          }
+        });
+      } catch (err) {
+        console.warn('Direct fetch failed, trying local sample fallback:', err);
+        // Fallback display message
+        document.getElementById('table-body').innerHTML = `
+          <tr>
+            <td colspan="14" style="text-align:center; padding: 2rem;">
+              ไม่สามารถโหลดไฟล์ CSV ผ่านโปรโตคอล file:// ได้โดยตรง<br>
+              กรุณาเปิดผ่าน GitHub Pages หรือ Web Server เพื่อดูตาราง 9,245 รายการแบบเรียลไทม์
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('search-input').value.toLowerCase().trim();
+      const cat = document.getElementById('filter-category').value;
+      const reg = document.getElementById('filter-region').value;
+      const chan = document.getElementById('filter-channel').value;
+      const pay = document.getElementById('filter-payment').value;
+
+      filteredData = allData.filter(row => {
+        if (cat && row['หมวดสินค้า'] !== cat) return false;
+        if (reg && row['ภาค'] !== reg) return false;
+        if (chan && row['ช่องทางการขาย'] !== chan) return false;
+        if (pay && row['วิธีชำระเงิน'] !== pay) return false;
+        if (q) {
+          const text = [row['รหัสคำสั่งซื้อ'], row['ชื่อสินค้า'], row['จังหวัด'], row['หมวดสินค้า']].join(' ').toLowerCase();
+          if (!text.includes(q)) return false;
+        }
+        return true;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+      document.getElementById('total-pages').textContent = totalPages;
+      document.getElementById('cur-page').textContent = currentPage;
+      document.getElementById('filtered-count').textContent = `แสดง ${filteredData.length.toLocaleString()} รายการ`;
+
+      document.getElementById('btn-prev').disabled = currentPage <= 1;
+      document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+      const start = (currentPage - 1) * pageSize;
+      const pageRows = filteredData.slice(start, start + pageSize);
+
+      const tbody = document.getElementById('table-body');
+      if (pageRows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding: 2rem;">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = pageRows.map(r => `
+        <tr>
+          <td><strong>${r['รหัสคำสั่งซื้อ'] || ''}</strong></td>
+          <td>${r['วันที่สั่งซื้อ'] || ''}</td>
+          <td>${r['เวลาสั่งซื้อ'] || ''}</td>
+          <td>${r['จังหวัด'] || ''}</td>
+          <td>${r['ภาค'] || ''}</td>
+          <td>${r['ช่องทางการขาย'] || ''}</td>
+          <td><span style="background:#E2E8F0; padding:2px 8px; border-radius:4px;">${r['หมวดสินค้า'] || ''}</span></td>
+          <td>${r['ชื่อสินค้า'] || ''}</td>
+          <td>฿${parseFloat(r['ราคาต่อหน่วย'] || 0).toLocaleString()}</td>
+          <td>${r['จำนวน'] || 0}</td>
+          <td>${r['ส่วนลด(%)'] || 0}%</td>
+          <td><strong style="color:var(--primary)">฿${parseFloat(r['ยอดรวมสุทธิ'] || 0).toLocaleString()}</strong></td>
+          <td>${r['วิธีชำระเงิน'] || ''}</td>
+          <td>${r['คะแนนรีวิว'] ? '★ ' + r['คะแนนรีวิว'] : '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Event Listeners
+    document.getElementById('search-input').addEventListener('input', applyFilters);
+    document.getElementById('filter-category').addEventListener('change', applyFilters);
+    document.getElementById('filter-region').addEventListener('change', applyFilters);
+    document.getElementById('filter-channel').addEventListener('change', applyFilters);
+    document.getElementById('filter-payment').addEventListener('change', applyFilters);
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+      const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    });
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      loadTableData();
+    });
+  </script>
+</body>
+</html>
